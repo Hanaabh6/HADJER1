@@ -75,13 +75,35 @@ def _clean_endpoint_url(endpoint_url: str) -> str:
     return clean.rstrip("/")
 
 
-def _build_remote_control(endpoint_url: str) -> dict | None:
+def _is_tv_type(thing_type: str) -> bool:
+    normalized = _normalize_text(thing_type)
+    return bool(re.search(r"\b(tv|smart\s*tv|television|televiseur)\b", normalized))
+
+
+def _build_remote_control(endpoint_url: str, thing_type: str = "") -> dict | None:
     endpoint = _clean_endpoint_url(endpoint_url)
     if not endpoint:
         return None
 
-    on_href = f"{endpoint}/actions/on"
-    off_href = f"{endpoint}/actions/off"
+    if _is_tv_type(thing_type):
+        actions = {
+            "play": {"method": "POST", "href": f"{endpoint}/play"},
+            "next": {"method": "POST", "href": f"{endpoint}/next"},
+            "prev": {"method": "POST", "href": f"{endpoint}/prev"},
+            "volume-up": {"method": "POST", "href": f"{endpoint}/volume-up"},
+            "volume-down": {"method": "POST", "href": f"{endpoint}/volume-down"},
+            "mute": {"method": "POST", "href": f"{endpoint}/mute"},
+            "channels": {"method": "GET", "href": f"{endpoint}/channels"},
+            "status": {"method": "GET", "href": f"{endpoint}/status"},
+        }
+    else:
+        on_href = f"{endpoint}/actions/on"
+        off_href = f"{endpoint}/actions/off"
+        actions = {
+            "on": {"method": "POST", "href": on_href},
+            "off": {"method": "POST", "href": off_href},
+        }
+
     return {
         "@type": "EntryPoint",
         "name": "REST Control",
@@ -89,17 +111,98 @@ def _build_remote_control(endpoint_url: str) -> dict | None:
         "contentType": "application/json",
         "endpoint": endpoint,
         "health": f"{endpoint}/health",
-        "actions": {
-            "on": {"method": "POST", "href": on_href},
-            "off": {"method": "POST", "href": off_href},
-        },
+        "actions": actions,
     }
 
 
-def _build_potential_actions(endpoint_url: str) -> list[dict]:
+def _build_potential_actions(endpoint_url: str, thing_type: str = "") -> list[dict]:
     endpoint = _clean_endpoint_url(endpoint_url)
     if not endpoint:
         return []
+
+    if _is_tv_type(thing_type):
+        return [
+            {
+                "@type": "ControlAction",
+                "name": "play",
+                "target": {
+                    "@type": "EntryPoint",
+                    "urlTemplate": f"{endpoint}/play",
+                    "httpMethod": "POST",
+                    "contentType": "application/json",
+                },
+            },
+            {
+                "@type": "ControlAction",
+                "name": "next",
+                "target": {
+                    "@type": "EntryPoint",
+                    "urlTemplate": f"{endpoint}/next",
+                    "httpMethod": "POST",
+                    "contentType": "application/json",
+                },
+            },
+            {
+                "@type": "ControlAction",
+                "name": "prev",
+                "target": {
+                    "@type": "EntryPoint",
+                    "urlTemplate": f"{endpoint}/prev",
+                    "httpMethod": "POST",
+                    "contentType": "application/json",
+                },
+            },
+            {
+                "@type": "ControlAction",
+                "name": "volume-up",
+                "target": {
+                    "@type": "EntryPoint",
+                    "urlTemplate": f"{endpoint}/volume-up",
+                    "httpMethod": "POST",
+                    "contentType": "application/json",
+                },
+            },
+            {
+                "@type": "ControlAction",
+                "name": "volume-down",
+                "target": {
+                    "@type": "EntryPoint",
+                    "urlTemplate": f"{endpoint}/volume-down",
+                    "httpMethod": "POST",
+                    "contentType": "application/json",
+                },
+            },
+            {
+                "@type": "ControlAction",
+                "name": "mute",
+                "target": {
+                    "@type": "EntryPoint",
+                    "urlTemplate": f"{endpoint}/mute",
+                    "httpMethod": "POST",
+                    "contentType": "application/json",
+                },
+            },
+            {
+                "@type": "ControlAction",
+                "name": "channels",
+                "target": {
+                    "@type": "EntryPoint",
+                    "urlTemplate": f"{endpoint}/channels",
+                    "httpMethod": "GET",
+                    "contentType": "application/json",
+                },
+            },
+            {
+                "@type": "ControlAction",
+                "name": "status",
+                "target": {
+                    "@type": "EntryPoint",
+                    "urlTemplate": f"{endpoint}/status",
+                    "httpMethod": "GET",
+                    "contentType": "application/json",
+                },
+            },
+        ]
 
     return [
         {
@@ -184,8 +287,8 @@ def add_thing(request: Request, data: AddThingRequest = Body(...)):
         location_room = _canonical_room_name(data.location.strip())
         coords = _coords_from_room(location_room)
         availability = _canonical_availability(data.status)
-        remote_control = _build_remote_control(data.endpoint_url)
-        potential_actions = _build_potential_actions(data.endpoint_url)
+        remote_control = _build_remote_control(data.endpoint_url, data.type)
+        potential_actions = _build_potential_actions(data.endpoint_url, data.type)
 
         new_item = {
             "@context": "https://schema.org",
@@ -316,8 +419,8 @@ def update_thing(thing_id: str, request: Request, data: UpdateThingRequest = Bod
         location_room = _canonical_room_name(data.location.strip())
         coords = _coords_from_room(location_room)
         availability = _canonical_availability(data.status)
-        remote_control = _build_remote_control(data.endpoint_url)
-        potential_actions = _build_potential_actions(data.endpoint_url)
+        remote_control = _build_remote_control(data.endpoint_url, data.type)
+        potential_actions = _build_potential_actions(data.endpoint_url, data.type)
 
         updated_fields = {
             "name": data.name,

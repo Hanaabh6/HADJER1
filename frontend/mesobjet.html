@@ -598,6 +598,64 @@
       gap: 12px;
     }
 
+    .tv-current {
+      margin: 0 0 14px;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid #dbeafe;
+      background: #eff6ff;
+      color: #1e3a8a;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .tv-actions-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .tv-channel-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .tv-btn {
+      border: none;
+      border-radius: 12px;
+      padding: 12px 10px;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      background: #e2e8f0;
+      color: #0f172a;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+    }
+
+    .tv-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.16);
+    }
+
+    .tv-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.7;
+      box-shadow: none;
+    }
+
+    .tv-btn.primary {
+      background: linear-gradient(135deg, #0ea5a4, #0f766e);
+      color: #fff;
+    }
+
+    .tv-btn.warn {
+      background: linear-gradient(135deg, #fb7185, #e11d48);
+      color: #fff;
+    }
+
     .lamp-action-btn {
       border: none;
       border-radius: 14px;
@@ -707,6 +765,8 @@
       th:nth-child(3), td:nth-child(3) { display: none; }
       .feature-grid { grid-template-columns: 1fr; }
       .lamp-actions { grid-template-columns: 1fr; }
+      .tv-actions-grid { grid-template-columns: 1fr; }
+      .tv-channel-grid { grid-template-columns: 1fr; }
       .feature-hero { align-items: flex-start; }
       .feature-overlay-head { align-items: center; }
     }
@@ -874,7 +934,15 @@
 
     function tr(key, fallback, params) {
       if (window.getTranslationText) return window.getTranslationText(key, fallback, params);
-      return fallback;
+      var text = typeof fallback === 'string' ? fallback : String(key || "");
+      if (params && typeof params === 'object') {
+        for (var k in params) {
+          if (!Object.prototype.hasOwnProperty.call(params, k)) continue;
+          var v = params[k];
+          text = text.replace(new RegExp('\\{' + k + '\\}', 'g'), String(v == null ? '' : v));
+        }
+      }
+      return text;
     }
 
     function getCurrentLocale() {
@@ -957,6 +1025,7 @@
       const raw = `${item && item.name ? item.name : ""} ${item && item.type ? item.type : ""}`.toLowerCase();
       if (/(lamp|lampe|light|eclair|luminaire)/.test(raw)) return "lamp";
       if (/(alarm|alarme|siren|sirene|alert|alerte)/.test(raw)) return "alarm";
+      if (/(smart\s*tv|television|televiseur|\btv\b)/.test(raw)) return "tv";
       return "";
     }
 
@@ -968,10 +1037,46 @@
       return getRemoteObjectKind(item) === "alarm";
     }
 
+    function isTvObject(item) {
+      return getRemoteObjectKind(item) === "tv";
+    }
+
+    function getControlActions(item) {
+      const control = item && typeof item.control === "object" ? item.control : {};
+      return control && typeof control.actions === "object" ? control.actions : {};
+    }
+
     function hasRemotePowerControls(item) {
       const control = item && typeof item.control === "object" ? item.control : {};
-      const actions = control && typeof control.actions === "object" ? control.actions : {};
+      const actions = getControlActions(item);
       return Boolean(control.endpoint && actions.on && actions.off);
+    }
+
+    function hasTvControls(item) {
+      const control = item && typeof item.control === "object" ? item.control : {};
+      const actions = getControlActions(item);
+      return Boolean(control.endpoint && actions.play && actions.next && actions.prev && actions["volume-up"] && actions["volume-down"] && actions.mute);
+    }
+
+    function getTvChannels(item) {
+      const fallback = ["tf1.mp4", "natgeo.mp4", "arte.mp4", "france24.mp4"];
+      const state = item && typeof item.device_state === "object" ? item.device_state : {};
+      const fromState = Array.isArray(state.channels) ? state.channels : [];
+      const channels = fromState.filter(function (name) { return Boolean(String(name || "").trim()); });
+      return channels.length ? channels : fallback;
+    }
+
+    function getTvChannelLabel(channelName) {
+      const raw = String(channelName || "").trim();
+      const base = raw.replace(/\.mp4$/i, "");
+      const known = {
+        tf1: "TF1",
+        natgeo: "National Geographic",
+        arte: "ARTE",
+        france24: "France 24"
+      };
+      const key = base.toLowerCase();
+      return known[key] || base || raw || "Chaîne";
     }
 
     function getRemotePowerState(item) {
@@ -997,8 +1102,13 @@
       const remoteKind = getRemoteObjectKind(item);
       const lampDetected = remoteKind === "lamp";
       const alarmDetected = remoteKind === "alarm";
-      const remoteControls = Boolean(remoteKind) && hasRemotePowerControls(item);
+      const tvDetected = remoteKind === "tv";
+      const remoteControls = (lampDetected || alarmDetected) && hasRemotePowerControls(item);
+      const tvControls = tvDetected && hasTvControls(item);
       const remoteState = remoteKind ? getRemotePowerState(item) : "off";
+      const tvChannels = tvDetected ? getTvChannels(item) : [];
+      const currentChannel = String(item && item.device_state && item.device_state.channel ? item.device_state.channel : "").trim();
+      const currentChannelLabel = tvDetected ? getTvChannelLabel(currentChannel) : "";
       const stateLabel = lampDetected
         ? (remoteState === "on"
             ? tr("my_objects_lamp_state_on", "Lampe allumee")
@@ -1007,17 +1117,23 @@
           ? (remoteState === "on"
               ? tr("my_objects_alarm_state_on", "Alarme activee")
               : tr("my_objects_alarm_state_off", "Alarme arretee"))
+          : tvDetected
+            ? (currentChannel
+                ? tr("my_objects_tv_state_channel", "Chaine active: {name}", { name: currentChannelLabel })
+                : tr("my_objects_tv_state_ready", "Smart TV prete"))
           : tr("status_in_use", "En utilisation");
       const chipClass = remoteKind
-        ? (remoteControls ? (remoteState === "on" ? "on" : "off") : "neutral")
+        ? ((remoteControls || tvControls) ? (remoteState === "on" ? "on" : "off") : "neutral")
         : "neutral";
       const chipIcon = lampDetected
         ? (remoteControls ? (remoteState === "on" ? "fa-power-off" : "fa-moon") : "fa-link")
         : alarmDetected
           ? (remoteControls ? (remoteState === "on" ? "fa-bell" : "fa-bell-slash") : "fa-link")
+        : tvDetected
+          ? (tvControls ? "fa-tv" : "fa-link")
         : "fa-cube";
       const chipLabel = remoteKind
-        ? (remoteControls ? stateLabel : tr("my_objects_remote_not_configured", "Controle distant non configure"))
+        ? ((remoteControls || tvControls) ? stateLabel : tr("my_objects_remote_not_configured", "Controle distant non configure"))
         : tr("status_in_use", "En utilisation");
       const featureSubtitle = lampDetected
         ? (remoteControls
@@ -1027,11 +1143,17 @@
           ? (remoteControls
               ? tr("my_objects_alarm_panel_sub", "Cette alarme peut etre activee ou arretee directement depuis cette fiche.")
               : tr("my_objects_alarm_panel_missing_sub", "Cette alarme est detectee, mais aucun endpoint reseau n'a encore ete configure par l'admin."))
+          : tvDetected
+            ? (tvControls
+                ? tr("my_objects_tv_panel_sub", "Controlez cette Smart TV en direct: chaines, suivant/precedent, volume et mute.")
+                : tr("my_objects_tv_panel_missing_sub", "Cette TV est detectee, mais les endpoints TV ne sont pas encore configures."))
         : tr("my_objects_generic_panel_sub", "Cette fiche affiche les informations de l'objet. D'autres commandes seront ajoutees selon le type.");
-      const heroIcon = lampDetected ? "fa-lightbulb" : (alarmDetected ? "fa-bell" : "fa-cube");
+      const heroIcon = lampDetected ? "fa-lightbulb" : (alarmDetected ? "fa-bell" : (tvDetected ? "fa-tv" : "fa-cube"));
       const actionHelp = lampDetected
         ? tr("my_objects_lamp_action_help", "Choisissez si vous voulez allumer ou eteindre votre lampe.")
-        : tr("my_objects_alarm_action_help", "Choisissez si vous voulez activer ou arreter votre alarme.");
+        : alarmDetected
+          ? tr("my_objects_alarm_action_help", "Choisissez si vous voulez activer ou arreter votre alarme.")
+          : tr("my_objects_tv_action_help", "Choisissez une chaine ou utilisez les commandes de la telecommande.");
       const actionOnLabel = lampDetected
         ? tr("my_objects_lamp_turn_on", "Allumer")
         : tr("my_objects_alarm_turn_on", "Activer");
@@ -1042,10 +1164,14 @@
       const actionOffIcon = lampDetected ? "fa-power-off" : "fa-bell-slash";
       const missingTitle = lampDetected
         ? tr("my_objects_lamp_missing_endpoint", "La lampe n'est pas encore reliee a un endpoint REST.")
-        : tr("my_objects_alarm_missing_endpoint", "L'alarme n'est pas encore reliee a un endpoint REST.");
+        : alarmDetected
+          ? tr("my_objects_alarm_missing_endpoint", "L'alarme n'est pas encore reliee a un endpoint REST.")
+          : tr("my_objects_tv_missing_endpoint", "La TV n'est pas encore reliee a un endpoint REST.");
       const missingSub = lampDetected
         ? tr("my_objects_lamp_missing_endpoint_sub", "Ajoutez l'adresse reseau de l'objet dans l'espace admin pour activer ON/OFF depuis cette page.")
-        : tr("my_objects_alarm_missing_endpoint_sub", "Ajoutez l'adresse reseau de l'objet dans l'espace admin pour activer ON/OFF depuis cette page.");
+        : alarmDetected
+          ? tr("my_objects_alarm_missing_endpoint_sub", "Ajoutez l'adresse reseau de l'objet dans l'espace admin pour activer ON/OFF depuis cette page.")
+          : tr("my_objects_tv_missing_endpoint_sub", "Ajoutez l'adresse du serveur Termux (ex: http://IP_DU_TELEPHONE:3001) dans l'objet TV.");
 
       featureOverlayTitle.textContent = tr("my_objects_feature_title", "Fonctionnalites de l'objet");
       featureOverlaySubtitle.textContent = featureSubtitle;
@@ -1085,18 +1211,13 @@
                 <span>${sanitize(tr("table_taken_on", "Pris le"))}</span>
                 <strong>${sanitize(takenAt)}</strong>
               </div>
-              ${item.control && item.control.endpoint ? `
-                <div class="feature-info-item">
-                  <span>Endpoint</span>
-                  <strong>${sanitize(item.control.endpoint)}</strong>
-                </div>
-              ` : ""}
+              
             </div>
           </section>
 
           <section class="feature-panel">
             <h4>${sanitize(tr("my_objects_available_actions", "Actions disponibles"))}</h4>
-            ${remoteKind && remoteControls ? `
+            ${(lampDetected || alarmDetected) && remoteControls ? `
               <p class="feature-description">${sanitize(actionHelp)}</p>
               <div class="lamp-actions">
                 <button
@@ -1119,6 +1240,44 @@
                 >
                   <i class="fas ${actionOffIcon}"></i> ${sanitize(actionOffLabel)}
                 </button>
+              </div>
+            ` : tvDetected && tvControls ? `
+              <p class="feature-description">${sanitize(actionHelp)}</p>
+              <p class="tv-current">
+                <i class="fas fa-signal"></i>
+                ${sanitize(currentChannel ? tr("my_objects_tv_now_playing", "Lecture en cours: {name}", { name: currentChannelLabel }) : tr("my_objects_tv_now_playing_unknown", "Aucune chaine active detectee"))}
+              </p>
+              <div class="tv-actions-grid">
+                <button type="button" class="tv-btn primary" data-feature-action="remote-tv" data-tv-action="prev" data-thing-id="${sanitize(safeId)}">
+                  <i class="fas fa-backward-step"></i> ${sanitize(tr("my_objects_tv_prev", "Chaine precedente"))}
+                </button>
+                <button type="button" class="tv-btn primary" data-feature-action="remote-tv" data-tv-action="next" data-thing-id="${sanitize(safeId)}">
+                  <i class="fas fa-forward-step"></i> ${sanitize(tr("my_objects_tv_next", "Chaine suivante"))}
+                </button>
+                <button type="button" class="tv-btn" data-feature-action="remote-tv" data-tv-action="volume-up" data-thing-id="${sanitize(safeId)}">
+                  <i class="fas fa-volume-high"></i> ${sanitize(tr("my_objects_tv_volume_up", "Volume +"))}
+                </button>
+                <button type="button" class="tv-btn" data-feature-action="remote-tv" data-tv-action="volume-down" data-thing-id="${sanitize(safeId)}">
+                  <i class="fas fa-volume-low"></i> ${sanitize(tr("my_objects_tv_volume_down", "Volume -"))}
+                </button>
+                <button type="button" class="tv-btn warn" data-feature-action="remote-tv" data-tv-action="mute" data-thing-id="${sanitize(safeId)}" style="grid-column: 1 / -1;">
+                  <i class="fas fa-volume-xmark"></i> ${sanitize(tr("my_objects_tv_mute", "Mute"))}
+                </button>
+              </div>
+              <h4 style="margin: 8px 0 6px; color:#0f172a;">${sanitize(tr("my_objects_tv_channels", "Chaines"))}</h4>
+              <div class="tv-channel-grid">
+                ${tvChannels.map((ch) => `
+                  <button
+                    type="button"
+                    class="tv-btn ${String(ch) === currentChannel ? "primary" : ""}"
+                    data-feature-action="remote-tv"
+                    data-tv-action="play"
+                    data-channel-name="${sanitize(String(ch))}"
+                    data-thing-id="${sanitize(safeId)}"
+                  >
+                    <i class="fas fa-play"></i> ${sanitize(getTvChannelLabel(ch))}
+                  </button>
+                `).join("")}
               </div>
             ` : remoteKind ? `
               <div class="feature-placeholder">
@@ -1152,16 +1311,19 @@
       featureOverlay.setAttribute("aria-hidden", "false");
     }
 
-    async function triggerRemotePowerAction(thingId, nextState) {
+    async function triggerRemoteAction(thingId, actionName, payload) {
       const safeId = String(thingId || "").trim();
-      const desiredState = nextState === "on" ? "on" : "off";
+      const safeAction = String(actionName || "").trim().toLowerCase();
       if (!safeId) return;
 
       try {
-        const response = await fetch(`${API_BASE}/things/${encodeURIComponent(safeId)}/actions/${encodeURIComponent(desiredState)}`, {
+        const requestInit = {
           method: "POST",
-          headers: authHeaders()
-        });
+          headers: authHeaders(),
+          body: JSON.stringify(payload && typeof payload === "object" ? payload : {})
+        };
+
+        const response = await fetch(`${API_BASE}/things/${encodeURIComponent(safeId)}/actions/${encodeURIComponent(safeAction)}`, requestInit);
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
           showToast(data.detail || tr("my_objects_remote_action_error", "Impossible d'executer la commande distante"), "error");
@@ -1170,21 +1332,12 @@
 
         const cachedItem = mesObjetsCache.get(safeId);
         if (cachedItem) {
-          cachedItem.device_state = data.device_state || {
-            power: desiredState,
-            last_action_at: new Date().toISOString(),
-            reachable: true
-          };
+          cachedItem.device_state = data.device_state || cachedItem.device_state || {};
           mesObjetsCache.set(safeId, cachedItem);
           renderFeatureContent(cachedItem);
         }
 
-        showToast(
-          data.message || (desiredState === "on"
-            ? tr("my_objects_remote_on_success", "{name} est maintenant active", { name: cachedItem && cachedItem.name ? cachedItem.name : tr("objects_all", "Objet") })
-            : tr("my_objects_remote_off_success", "{name} est maintenant arrete", { name: cachedItem && cachedItem.name ? cachedItem.name : tr("objects_all", "Objet") })),
-          "success"
-        );
+        showToast(data.message || tr("my_objects_remote_action_success", "Commande envoyee avec succes"), "success");
         await loadMesObjets();
       } catch (error) {
         console.error("Erreur commande objet:", error);
@@ -1243,6 +1396,7 @@
           const availability = String(item.availability || "en_utilisation").toLowerCase();
           const lampDetected = isLampObject(item);
           const alarmDetected = isAlarmObject(item);
+          const tvDetected = isTvObject(item);
           const badge = availability === "disponible"
             ? `<span class="badge badge-ok">${sanitize(tr("status_available", "Disponible"))}</span>`
             : `<span class="badge badge-inuse">${sanitize(tr("status_in_use", "En utilisation"))}</span>`;
@@ -1258,6 +1412,8 @@
                     ? tr("my_objects_open_lamp_hint", "Ouvrir les commandes de la lampe")
                     : alarmDetected
                       ? tr("my_objects_open_alarm_hint", "Ouvrir les commandes de l'alarme")
+                    : tvDetected
+                      ? tr("my_objects_open_tv_hint", "Ouvrir la telecommande TV")
                     : tr("my_objects_open_object_hint", "Ouvrir la fiche de l'objet"))}
                 </span>
               </td>
@@ -1338,17 +1494,33 @@
 
     if (featureBody) {
       featureBody.addEventListener("click", async function (event) {
-        const actionBtn = event.target.closest("[data-feature-action='remote-power']");
+        const actionBtn = event.target.closest("[data-feature-action='remote-power'], [data-feature-action='remote-tv']");
         if (!actionBtn) return;
 
         const thingId = String(actionBtn.getAttribute("data-thing-id") || "").trim();
-        const nextState = actionBtn.getAttribute("data-next-state") === "on" ? "on" : "off";
         const item = mesObjetsCache.get(thingId);
-        if (!thingId || !item || !getRemoteObjectKind(item) || !hasRemotePowerControls(item)) return;
+        if (!thingId || !item || !getRemoteObjectKind(item)) return;
 
-        const buttons = featureBody.querySelectorAll("[data-feature-action='remote-power']");
+        const featureAction = actionBtn.getAttribute("data-feature-action");
+        let actionName = "";
+        let payload = {};
+
+        if (featureAction === "remote-power") {
+          const nextState = actionBtn.getAttribute("data-next-state") === "on" ? "on" : "off";
+          if (!hasRemotePowerControls(item)) return;
+          actionName = nextState;
+        } else {
+          if (!hasTvControls(item)) return;
+          actionName = String(actionBtn.getAttribute("data-tv-action") || "").trim().toLowerCase();
+          if (!actionName) return;
+          if (actionName === "play") {
+            payload = { channel: String(actionBtn.getAttribute("data-channel-name") || "").trim() };
+          }
+        }
+
+        const buttons = featureBody.querySelectorAll("[data-feature-action='remote-power'], [data-feature-action='remote-tv']");
         buttons.forEach(function (btn) { btn.disabled = true; });
-        await triggerRemotePowerAction(thingId, nextState);
+        await triggerRemoteAction(thingId, actionName, payload);
       });
     }
 

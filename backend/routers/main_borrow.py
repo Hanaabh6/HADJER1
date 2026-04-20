@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 import sys
+from typing import Any
 
 import requests
 from fastapi import APIRouter, HTTPException, Request
@@ -78,6 +79,59 @@ def _remote_action_config(thing: dict, action_name: str) -> dict:
     if not href:
         raise HTTPException(status_code=400, detail="Aucune action distante configuree pour cet objet")
     return {"href": href, "method": method}
+
+
+def _call_remote_action(remote_cfg: dict, payload: dict[str, Any] | None = None):
+    method = str(remote_cfg.get("method") or "POST").strip().upper()
+    href = str(remote_cfg.get("href") or "").strip()
+    if method == "GET":
+        return requests.get(href, timeout=8)
+
+    clean_payload = payload if isinstance(payload, dict) and payload else None
+    return requests.request(method, href, json=clean_payload, timeout=8)
+
+
+def _extract_response_payload(response) -> dict:
+    try:
+        data = response.json()
+        if isinstance(data, dict):
+            return data
+        return {"data": data}
+    except ValueError:
+        return {"message": str(response.text or "").strip()}
+
+
+def _build_device_state(thing: dict, action_name: str, payload: dict, remote_payload: dict) -> dict:
+    previous = thing.get("device_state") if isinstance(thing.get("device_state"), dict) else {}
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    next_state = {
+        "power": str(previous.get("power") or "off"),
+        "last_action": action_name,
+        "last_action_at": now_iso,
+        "reachable": True,
+        "last_result": remote_payload,
+    }
+
+    if action_name in {"on", "off"}:
+        next_state["power"] = "on" if action_name == "on" else "off"
+
+    if action_name == "play":
+        channel = str(payload.get("channel") or remote_payload.get("current") or "").strip()
+        if channel:
+            next_state["channel"] = channel
+
+    if action_name in {"next", "prev", "status"}:
+        channel = str(remote_payload.get("current") or "").strip()
+        if channel:
+            next_state["channel"] = channel
+
+    if action_name == "channels":
+        channels = remote_payload.get("channels") if isinstance(remote_payload.get("channels"), list) else remote_payload.get("data")
+        if isinstance(channels, list):
+            next_state["channels"] = channels
+
+    return next_state
 
 
 @borrow_router.get("/user/mes-objets")
@@ -285,11 +339,12 @@ def retourner_objet(thing_id: str, request: Request):
 
 
 @borrow_router.post("/things/{thing_id}/actions/{action_name}")
-def trigger_remote_object_action(thing_id: str, action_name: str, request: Request):
+def trigger_remote_object_action(thing_id: str, action_name: str, request: Request, payload: dict[str, Any] | None = None):
     user_id, email = _require_authenticated_user(request)
 
     safe_action = str(action_name or "").strip().lower()
-    if safe_action not in {"on", "off"}:
+    supported_actions = {"on", "off", "play", "next", "prev", "volume-up", "volume-down", "mute", "channels", "status"}
+    if safe_action not in supported_actions:
         raise HTTPException(status_code=400, detail="Action distante non supportee")
 
     things = _things_collection()
@@ -304,17 +359,18 @@ def trigger_remote_object_action(thing_id: str, action_name: str, request: Reque
         raise HTTPException(status_code=404, detail="Objet introuvable")
 
     remote_cfg = _remote_action_config(thing, safe_action)
+    action_payload = payload if isinstance(payload, dict) else {}
 
     # Premier essai: appel selon la configuration fournie
     last_exception = None
     remote_response = None
     try:
-        remote_response = requests.request(remote_cfg["method"], remote_cfg["href"], timeout=6)
+        remote_response = _call_remote_action(remote_cfg, action_payload)
     except requests.RequestException as exc:
         last_exception = exc
 
-    # Si l'appel initial a echoue ou retourne une erreur, tenter quelques fallbacks courants
-    if not remote_response or not getattr(remote_response, "ok", False):
+    # Si l'appel initial a echoue ou retourne une erreur, tenter quelques fallbacks courants (ON/OFF seulement)
+    if safe_action in {"on", "off"} and (not remote_response or not getattr(remote_response, "ok", False)):
         # tentatives alternatives: même method avec JSON, POST avec different payloads, puis GET
         try:
             resp_alt = requests.request(remote_cfg["method"], remote_cfg["href"], json={"action": safe_action}, timeout=6)
@@ -348,23 +404,14 @@ def trigger_remote_object_action(thing_id: str, action_name: str, request: Reque
         )
         raise HTTPException(status_code=502, detail=f"Objet distant injoignable: {last_exception}") from last_exception
 
-    try:
-        payload = remote_response.json()
-    except ValueError:
-        payload = {"message": remote_response.text.strip()}
+    remote_payload = _extract_response_payload(remote_response)
 
     if not getattr(remote_response, "ok", False):
-        detail = payload.get("detail") or payload.get("error") or payload.get("message") or "Echec action distante"
+        detail = remote_payload.get("detail") or remote_payload.get("error") or remote_payload.get("message") or "Echec action distante"
         raise HTTPException(status_code=502, detail=str(detail))
 
     now_iso = datetime.now(timezone.utc).isoformat()
-    power_state = "on" if safe_action == "on" else "off"
-    device_state = {
-        "power": power_state,
-        "last_action_at": now_iso,
-        "reachable": True,
-        "last_result": payload,
-    }
+    device_state = _build_device_state(thing, safe_action, action_payload, remote_payload)
 
     things.update_one(
         {"id": thing_id},
@@ -382,6 +429,7 @@ def trigger_remote_object_action(thing_id: str, action_name: str, request: Reque
             "created_at": now_iso,
             "thing_id": thing_id,
             "thing_name": thing.get("name", ""),
+            "remote_payload": remote_payload,
         }
     )
     _prune_user_history(user_id)
@@ -401,8 +449,8 @@ def trigger_remote_object_action(thing_id: str, action_name: str, request: Reque
 
     return {
         "success": True,
-        "message": payload.get("message") or f"Action {safe_action.upper()} executee",
+        "message": remote_payload.get("message") or f"Action {safe_action.upper()} executee",
         "thing_id": thing_id,
         "device_state": device_state,
-        "remote_response": payload,
+        "remote_response": remote_payload,
     }
