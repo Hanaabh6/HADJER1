@@ -96,7 +96,7 @@
 <script src="config.js"></script>
 <script src="translations.js"></script>
 <script>
-  const apiBase = (window.APP_CONFIG && window.APP_CONFIG.API_BASE) || "https://pfetest-api.onrender.com";
+  const apiBase = window.APP_CONFIG.API_BASE;
 
   document.getElementById('forgotBtn').addEventListener('click', async () => {
     const field = document.getElementById('loginEmail');
@@ -154,4 +154,3 @@
 </script>
 </body>
 </html>
-

@@ -902,7 +902,7 @@
 
   <script src="translations.js"></script>
   <script>
-    const API_BASE = (window.APP_CONFIG && window.APP_CONFIG.API_BASE) || "https://pfetest-api.onrender.com";
+    const API_BASE = window.APP_CONFIG.API_BASE;
     const token = localStorage.getItem("userToken");
 
     const objectsTable = document.getElementById("objectsTable");
@@ -1171,7 +1171,7 @@
         ? tr("my_objects_lamp_missing_endpoint_sub", "Ajoutez l'adresse reseau de l'objet dans l'espace admin pour activer ON/OFF depuis cette page.")
         : alarmDetected
           ? tr("my_objects_alarm_missing_endpoint_sub", "Ajoutez l'adresse reseau de l'objet dans l'espace admin pour activer ON/OFF depuis cette page.")
-          : tr("my_objects_tv_missing_endpoint_sub", "Ajoutez l'adresse du serveur Termux (ex: http://IP_DU_TELEPHONE:3001) dans l'objet TV.");
+          : tr("my_objects_tv_missing_endpoint_sub", "Ajoutez une URL publique du serveur Termux (ex: https://mon-termux.example.com) dans l'objet TV.");
 
       featureOverlayTitle.textContent = tr("my_objects_feature_title", "Fonctionnalites de l'objet");
       featureOverlaySubtitle.textContent = featureSubtitle;

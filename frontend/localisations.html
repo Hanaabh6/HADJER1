@@ -430,7 +430,7 @@
         }
 
         async function fetchAdminHistory() {
-            const response = await fetch(`${window.APP_CONFIG?.API_BASE || 'https://pfetest-api.onrender.com'}/user/history`, { method: 'GET', headers: authHeaders() });
+            const response = await fetch(`${window.APP_CONFIG.API_BASE}/user/history`, { method: 'GET', headers: authHeaders() });
             const data = await response.json().catch(function () { return []; });
             const list = Array.isArray(data) ? data : [];
             return list.filter(isAdminHistoryEntry);
@@ -609,7 +609,7 @@
         async function loadRoomObjects(roomName) {
             try {
                 const coords = ROOM_COORDS[roomName] || { x: 0, y: 0, z: 0 };
-                const response = await fetch(`${window.APP_CONFIG?.API_BASE || 'https://pfetest-api.onrender.com'}/things/search`, {
+                const response = await fetch(`${window.APP_CONFIG.API_BASE}/things/search`, {
                     method: 'POST',
                     headers: authHeaders(),
                     body: JSON.stringify({
@@ -1003,5 +1003,4 @@
     <script src="admin-reports.js"></script>
 </body>
 </html>
-
 

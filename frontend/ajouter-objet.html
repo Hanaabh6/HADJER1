@@ -475,7 +475,7 @@
 
                     <div class="field-card">
                         <label class="field-label" for="objEndpoint"><i class="fas fa-wifi text-emerald-700"></i> Endpoint reseau REST</label>
-                        <input type="url" id="objEndpoint" maxlength="300" placeholder="Ex: http://192.168.100.21:3001" class="field-input">
+                        <input type="url" id="objEndpoint" maxlength="300" placeholder="Ex: https://mon-termux.example.com" class="field-input">
                         <p class="field-help">Optionnel. Ajoutez-le pour un objet reel pilotable a distance comme la lampe de demo.</p>
                     </div>
 
@@ -554,7 +554,7 @@
 
     <script src="translations.js"></script>
     <script>
-        const apiBase = (window.APP_CONFIG && window.APP_CONFIG.API_BASE) || 'https://pfetest-api.onrender.com';
+        const apiBase = window.APP_CONFIG.API_BASE;
         const token = localStorage.getItem('userToken');
         if (!token) window.location.href = "login.html";
 
@@ -927,7 +927,7 @@
 
         async function loadTypeCounts() {
             try {
-                const res = await fetch(`${(window.APP_CONFIG && window.APP_CONFIG.API_BASE) || 'https://pfetest-api.onrender.com'}/things/search`, {
+                const res = await fetch(`${window.APP_CONFIG.API_BASE}/things/search`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ search_query: '' })
@@ -1073,7 +1073,7 @@
             };
 
             try {
-            const response = await fetch(`${(window.APP_CONFIG && window.APP_CONFIG.API_BASE) || 'https://pfetest-api.onrender.com'}/things/add`, {
+            const response = await fetch(`${window.APP_CONFIG.API_BASE}/things/add`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
