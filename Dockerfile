@@ -24,7 +24,6 @@ COPY --from=backend-builder /usr/local/bin /usr/local/bin
 # Copy backend code
 COPY backend/ ./backend/
 COPY main.py .
-COPY .env .env 2>/dev/null || true
 
 # Copy frontend static files
 COPY frontend/ ./frontend/
