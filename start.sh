@@ -1,9 +1,6 @@
-#!/bin/bash
-# Startup script for Railway
-# Use PORT from environment (Railway default) or fallback to 8000
+#!/usr/bin/env sh
+set -eu
 
-PORT=${PORT:-8000}
-HOST=${HOST:-0.0.0.0}
+PORT_VALUE="${PORT:-8000}"
 
-echo "🚀 Starting FastAPI on $HOST:$PORT"
-exec uvicorn main:app --host "$HOST" --port "$PORT"
+exec uvicorn main:app --host 0.0.0.0 --port "${PORT_VALUE}"

@@ -351,7 +351,7 @@
             window.location.href = "user.html";
         }
 
-        const apiBase = (window.APP_CONFIG && window.APP_CONFIG.API_BASE) || 'https://pfetest-api.onrender.com';
+        const apiBase = window.APP_CONFIG.API_BASE;
         const adminHistoryKey = 'adminHistory';
         const openHistoryOverlay = document.getElementById('openHistoryOverlay');
         const profileButton = document.getElementById('profileButton');

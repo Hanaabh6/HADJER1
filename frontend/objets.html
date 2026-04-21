@@ -261,7 +261,7 @@
 
     <script src="translations.js"></script>
     <script>
-        const apiBase = (window.APP_CONFIG && window.APP_CONFIG.API_BASE) || 'https://pfetest-api.onrender.com';
+        const apiBase = window.APP_CONFIG.API_BASE;
         
         // --- VARIABLES GLOBALES POUR L'OVERLAY ---
         const openHistoryOverlay = document.getElementById('openHistoryOverlay');
@@ -496,7 +496,7 @@
                         </label>
                         <label class="md:col-span-2 block">
                             <span class="text-slate-600 font-semibold">Endpoint reseau REST</span>
-                            <input id="editEndpoint" type="url" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" value="${escapeHtml(details.endpoint_url || '')}" placeholder="Ex: http://192.168.100.21:3001">
+                            <input id="editEndpoint" type="url" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" value="${escapeHtml(details.endpoint_url || '')}" placeholder="Ex: https://mon-termux.example.com">
                         </label>
                         <div class="md:col-span-2 flex justify-end gap-2 pt-1">
                             <button type="button" onclick="closeOverlay()" class="px-4 py-2 rounded-lg bg-slate-200 text-slate-800">Annuler</button>
@@ -877,4 +877,3 @@
     <script src="admin-reports.js"></script>
 </body>
 </html>
-

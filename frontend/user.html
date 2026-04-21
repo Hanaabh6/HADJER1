@@ -551,7 +551,7 @@ const appToast = document.getElementById("appToast");
 const appToastTitle = document.getElementById("appToastTitle");
 const appToastText = document.getElementById("appToastText");
 const userCurrentPos = document.getElementById("userCurrentPos");
-const apiBase = (window.APP_CONFIG && window.APP_CONFIG.API_BASE) || "https://pfetest-api.onrender.com";
+const apiBase = window.APP_CONFIG.API_BASE;
 const userToken = localStorage.getItem("userToken");
 let appToastTimer = null;
 const PROFILE_NAME_KEY = "userDisplayName";
@@ -1140,7 +1140,7 @@ function openObjectDecision(row) {
   
   // Incrémenter le view_count
   if (objId) {
-    fetch(`https://pfetest-api.onrender.com/things/${encodeURIComponent(objId)}/view`, { method: 'POST' }).catch(err => console.error('View count error:', err));
+    fetch(`${apiBase}/things/${encodeURIComponent(objId)}/view`, { method: 'POST' }).catch(err => console.error('View count error:', err));
   }
   
   const detail = objectDetailsCache.get(objId);
@@ -1683,6 +1683,5 @@ initUserDashboard();
 <script src="sidebar-overlay-active.js"></script>
 </body>
 </html>
-
 
 

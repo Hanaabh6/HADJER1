@@ -18,6 +18,21 @@ HISTORY_PRUNE_SCAN_BUFFER = 5000
 
 
 def _get_frontend_base_url() -> str:
+    explicit_public_url = (
+        os.getenv("PUBLIC_APP_URL")
+        or os.getenv("APP_BASE_URL")
+        or os.getenv("FRONTEND_PUBLIC_URL")
+        or ""
+    ).strip().rstrip("/")
+    if explicit_public_url:
+        return explicit_public_url
+
+    railway_public_domain = str(os.getenv("RAILWAY_PUBLIC_DOMAIN") or "").strip().rstrip("/")
+    if railway_public_domain:
+        if railway_public_domain.startswith(("http://", "https://")):
+            return railway_public_domain
+        return f"https://{railway_public_domain}"
+
     configured = os.getenv(
         "FRONTEND_ORIGINS",
         "http://127.0.0.1:5501,http://localhost:5501,http://127.0.0.1:5500,http://localhost:5500",

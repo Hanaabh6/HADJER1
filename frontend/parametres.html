@@ -460,7 +460,7 @@
 
   <script src="translations.js"></script>
   <script>
-    const apiBase = (window.APP_CONFIG && window.APP_CONFIG.API_BASE) || "https://pfetest-api.onrender.com";
+    const apiBase = window.APP_CONFIG.API_BASE;
     const token = localStorage.getItem("userToken");
 
     if (!token) {

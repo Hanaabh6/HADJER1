@@ -1,76 +1,11 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Virtual environments
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-
-# Git
 .git
 .gitignore
-.gitattributes
-
-# Docker
-Dockerfile*
-docker-compose*.yml
-.dockerignore
-
-# Node (if any)
-node_modules/
-npm-debug.log
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Environment
-.env
-.env.local
-.env.*.local
-
-# Temporary files
-*.tmp
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
 *.log
-*.pid
-
-# Keep only what's needed
-!requirements.txt
-!frontend/
-!backend/
-!main.py
-!.env.example
+bdd.env
+.vscode
+.idea

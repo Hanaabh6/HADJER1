@@ -1,8 +1,27 @@
 window.APP_CONFIG = window.APP_CONFIG || {};
 
-if (!window.APP_CONFIG.API_BASE) {
+(function resolveRuntimeConfig() {
+  function normalizeBase(value) {
+    return String(value || "").trim().replace(/\/+$/, "");
+  }
+
+  if (normalizeBase(window.APP_CONFIG.API_BASE)) {
+    window.APP_CONFIG.API_BASE = normalizeBase(window.APP_CONFIG.API_BASE);
+    return;
+  }
+
+  var protocol = window.location && window.location.protocol
+    ? String(window.location.protocol).toLowerCase()
+    : "";
+  var origin = normalizeBase(window.location && window.location.origin ? window.location.origin : "");
+
+  if ((protocol === "http:" || protocol === "https:") && origin && origin !== "null") {
+    window.APP_CONFIG.API_BASE = origin;
+    return;
+  }
+
   window.APP_CONFIG.API_BASE = "http://127.0.0.1:8000";
-}
+})();
 
 (function () {
   var nativeAlert = window.alert ? window.alert.bind(window) : function () {};
@@ -398,7 +417,7 @@ if (!window.APP_CONFIG.API_BASE) {
     var token = String(localStorage.getItem("userToken") || "").trim();
     if (!token) return Promise.resolve(null);
 
-    var apiBase = (window.APP_CONFIG && window.APP_CONFIG.API_BASE) || "http://127.0.0.1:8000";
+    var apiBase = window.APP_CONFIG.API_BASE;
     profileRequest = fetch(apiBase + "/user/profile", {
       method: "GET",
       headers: {

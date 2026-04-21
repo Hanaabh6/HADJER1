@@ -1,47 +1,24 @@
-# Multi-stage build for optimized image
-FROM python:3.11-slim as backend-builder
-
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements and install Python deps
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Production stage
 FROM python:3.11-slim
 
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
 WORKDIR /app
 
-# Copy Python deps from builder
-COPY --from=backend-builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=backend-builder /usr/local/bin /usr/local/bin
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy backend code
-COPY backend/ ./backend/
-COPY main.py .
+COPY requirements.txt /app/requirements.txt
 
-# Copy startup script
-COPY start.sh .
-RUN chmod +x start.sh
+RUN pip install --upgrade pip \
+    && pip install -r /app/requirements.txt
 
-# Copy frontend static files
-COPY frontend/ ./frontend/
+COPY . /app
 
-# Create non-root user for security
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
-USER appuser
+RUN chmod +x /app/start.sh
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')" || exit 1
-
-# Expose port
 EXPOSE 8000
 
-# Run startup script
 CMD ["./start.sh"]
