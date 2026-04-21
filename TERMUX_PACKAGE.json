@@ -1,0 +1,24 @@
+{
+  "name": "intellibuild-termux-device",
+  "version": "1.0.0",
+  "description": "IoT Device Client for Termux - Control Android devices via IntelliBuild backend",
+  "main": "TERMUX_DEVICE_CLIENT.js",
+  "scripts": {
+    "start": "node TERMUX_DEVICE_CLIENT.js",
+    "dev": "BACKEND_URL=http://127.0.0.1:8000 node TERMUX_DEVICE_CLIENT.js"
+  },
+  "keywords": [
+    "termux",
+    "iot",
+    "android",
+    "intellibuild"
+  ],
+  "author": "IntelliBuild",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
