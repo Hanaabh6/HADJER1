@@ -5,6 +5,8 @@ import time
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 
 if __package__ is None:
@@ -112,9 +114,23 @@ app.include_router(notifications_router)
 app.include_router(devices_router)
 app.include_router(termux_router)
 
+# Mount frontend static files
+frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
+if os.path.exists(frontend_path):
+    app.mount("/static", StaticFiles(directory=frontend_path), name="static")
+
 @app.get("/")
 def root():
+    """Serve the main index page"""
+    frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "p1.html")
+    if os.path.exists(frontend_path):
+        return FileResponse(frontend_path, media_type="text/html")
     return {"message": "API is running"}
+
+@app.get("/health")
+def health_check():
+    """Health check endpoint"""
+    return {"status": "ok"}
 
 
 
